@@ -6,6 +6,7 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import io.restassured.response.Response;
+import io.cucumber.java.After;
 
 import java.util.List;
 import java.util.Map;
@@ -19,10 +20,35 @@ public class CommonSteps {
     private Response response;
     private String token;
     private Integer toolId;
+    private String createdOrderId;
+
 
     // -------------------------
     // Generic REST steps
     // -------------------------
+    
+    private void ensureToolId() {
+        if (this.toolId != null) return;
+
+        Response r = given()
+                .spec(Specs.request())
+                .when()
+                .get("/tools")
+                .then()
+                .statusCode(200)
+                .extract()
+                .response();
+
+        var list = r.jsonPath().getList("$");
+        for (Object o : list) {
+            if (o instanceof java.util.Map<?, ?> m && m.get("id") != null) {
+                this.toolId = Integer.valueOf(m.get("id").toString());
+                return;
+            }
+        }
+        throw new IllegalStateException("No tool with an 'id' found in /tools response: " + r.asString());
+    }
+
 
     @When("I send GET request to {string}")
     public void i_send_get_request_to(String path) {
@@ -135,8 +161,8 @@ public class CommonSteps {
 
     @When("I create a new order with a valid tool id and customer name")
     public void i_create_a_new_order_with_valid_tool_id_and_customer_name() {
-        int toolId = 1; // biće zamenjeno dinamičkim ID-em u sledećem koraku refaktora
-        String payload = String.format("{\"toolId\": %d, \"customerName\": \"John Doe\"}", toolId);
+        ensureToolId(); // ⬅️ dinamički dohvat toolId-a
+        String payload = String.format("{\"toolId\": %d, \"customerName\": \"John Doe\"}", this.toolId);
 
         response = given()
                 .spec(Specs.request())
@@ -144,7 +170,15 @@ public class CommonSteps {
                 .body(payload)
                 .when()
                 .post("/orders");
+        
+        if (response.getStatusCode() == 201) {
+            Object id = response.jsonPath().get("orderId");
+            if (id != null) {
+                createdOrderId = id.toString();
+            }
+        }
     }
+
 
     @When("I send an authorized POST request to {string} with body:")
     public void i_send_an_authorized_post_request_to_with_body(String path, String docString) {
@@ -204,4 +238,25 @@ public class CommonSteps {
                 .when()
                 .get("/tools/" + toolId);
     }
+    
+    @After
+    public void cleanupCreatedOrder() {
+        if (createdOrderId != null && !createdOrderId.isBlank() && !"does-not-exist".equals(createdOrderId)) {
+            try {
+                given()
+                    .spec(Specs.request())
+                    .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
+                    .when()
+                    .delete("/orders/" + createdOrderId)
+                    .then()
+                    .statusCode(org.hamcrest.Matchers.anyOf(org.hamcrest.Matchers.is(204), org.hamcrest.Matchers.is(404)));
+            } catch (Exception ignored) {
+                // ne rušimo suite zbog cleanup-a
+            } finally {
+                createdOrderId = null;
+            }
+        }
+    }
+    
+    
 }
