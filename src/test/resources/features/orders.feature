@@ -48,3 +48,13 @@ Feature: Orders management
   Scenario: Delete non-existent order returns 404
     When I send an authorized DELETE request to "/orders/does-not-exist"
     Then the response status code should be 404
+    
+   @regression @orders @contract
+	Scenario: Create then fetch a single order
+  Given I have a valid access token
+  When I create a new order with a valid tool id and customer name
+  Then the response status code should be 201
+  When I fetch that order
+  Then the response status code should be 200
+  And the response should match schema "schemas/order_object.json"
+

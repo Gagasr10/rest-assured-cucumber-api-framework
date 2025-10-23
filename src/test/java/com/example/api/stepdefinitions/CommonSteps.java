@@ -21,6 +21,7 @@ public class CommonSteps {
     private String token;
     private Integer toolId;
     private String createdOrderId;
+    private String lastCreatedOrderId;
 
 
     // -------------------------
@@ -49,6 +50,12 @@ public class CommonSteps {
         throw new IllegalStateException("No tool with an 'id' found in /tools response: " + r.asString());
     }
 
+    
+    public String getLastCreatedOrderId() 
+    { return lastCreatedOrderId; }
+    
+    public void clearLastCreatedOrderId() 
+    { lastCreatedOrderId = null; }
 
     @When("I send GET request to {string}")
     public void i_send_get_request_to(String path) {
@@ -161,7 +168,9 @@ public class CommonSteps {
 
     @When("I create a new order with a valid tool id and customer name")
     public void i_create_a_new_order_with_valid_tool_id_and_customer_name() {
-        ensureToolId(); // ⬅️ dinamički dohvat toolId-a
+        // Ensure we always use a valid toolId from /tools
+        ensureToolId();
+
         String payload = String.format("{\"toolId\": %d, \"customerName\": \"John Doe\"}", this.toolId);
 
         response = given()
@@ -170,7 +179,8 @@ public class CommonSteps {
                 .body(payload)
                 .when()
                 .post("/orders");
-        
+
+        // Store created orderId so we can clean it up after scenario
         if (response.getStatusCode() == 201) {
             Object id = response.jsonPath().get("orderId");
             if (id != null) {
@@ -178,6 +188,8 @@ public class CommonSteps {
             }
         }
     }
+
+    
 
 
     @When("I send an authorized POST request to {string} with body:")
@@ -258,5 +270,18 @@ public class CommonSteps {
         }
     }
     
+    @When("I fetch that order")
+    public void i_fetch_that_order() {
+        assertThat(createdOrderId)
+                .as("An order must be created first to fetch it")
+                .isNotBlank();
+
+        response = given()
+                .spec(Specs.request())
+                .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
+                .when()
+                .get("/orders/" + createdOrderId);
+    }
+
     
 }
