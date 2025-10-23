@@ -1,415 +1,324 @@
-TOOLS API – Test Cases
+# TOOLS — Manual Test Cases (GET /tools, GET /tools/:toolId)
 
-This document contains manual test cases for validating the Tools module of the Simple Tool Rental API. The goal is to verify functionality, input validation, filtering logic, error handling, and response contract consistency for the /tools endpoints.
+This document contains the manual test scenarios for validating the `/tools` endpoints of the Simple Tool Rental API. The goal is to verify correctness, filtering behavior, negative test handling, and JSON contract compliance.
 
-Scope & Assumptions
+**Module:** Inventory (Tools)  
+**Base URL:** https://simple-tool-rental-api.click  
+**Author:** Dragan S. – QA Automation Engineer  
+**Automation Coverage:** Yes (Cucumber + REST Assured + TestNG)  
+**Tags Used:** @tools, @smoke, @negative, @contract, @regression
+
+---
+
+## Scope & Assumptions
 
 Endpoints in scope:
-
-GET /tools – Retrieve list of tools
-
-GET /tools/:toolId – Retrieve a single tool by ID
+- `GET /tools`
+- `GET /tools/:toolId`
 
 Assumptions:
+- No authentication is required for the `/tools` endpoints.
+- Valid tool categories as per API documentation:
+  `ladders`, `plumbing`, `power-tools`, `trailers`, `electric-generators`, `lawn-care`
+- `results` query parameter must be within `[1..20]`
+- Optional filters supported:
+  - `available=true|false`
+  - `user-manual=true` (optional, may return binary PDF)
 
-API is reachable and responsive.
+--------------------------------------------------------------------------------
+## TC-TOOLS-001 – Get all tools (default)
 
-No authentication is required for /tools endpoints.
+**Type:** Positive (Smoke)  
+**Priority:** High  
+**Preconditions:** API is reachable  
 
-Query parameters are optional unless specified.
+**Request:**  
+- Method: GET  
+- Endpoint: `/tools`
 
-Valid tool categories include:
-ladders, plumbing, power-tools, trailers, electric-generators, lawn-care
+**Steps:**  
+1. Send GET request to `/tools`
 
-The results parameter must accept values from 1 to 20 inclusive.
+**Expected Result:**  
+- Status code is `200 OK`  
+- Response body is a JSON array  
+- Default number of tools returned is up to 20 items  
 
-If unspecified, the default number of results is 20.
+**Tags:** @tools @smoke
 
-Test Cases
-TC-TOOLS-001 – Get all tools (default)
+--------------------------------------------------------------------------------
+## TC-TOOLS-002 – Filter tools by valid category
 
-Type: Positive (Smoke)
-Priority: High
-Preconditions:
+**Type:** Positive  
+**Priority:** High  
+**Preconditions:** API is reachable  
 
-API is available
+**Request:**  
+- Method: GET  
+- Endpoint: `/tools?category={cat}`  
+- Test Data: `ladders`, `plumbing`, `power-tools`, `trailers`, `electric-generators`, `lawn-care`
 
-Request:
+**Steps:**  
+1. Send GET request using each valid category as query parameter  
 
-Method: GET
+**Expected Result:**  
+- Status code is `200 OK`  
+- Response body is a JSON array  
+- All returned tools (if category field present) match selected category  
 
-Endpoint: /tools
+**Tags:** @tools
 
-Steps:
+--------------------------------------------------------------------------------
+## TC-TOOLS-003 – Filter tools by availability = true
 
-Send GET request to /tools
+**Type:** Positive  
+**Priority:** Medium  
+**Preconditions:** API is reachable  
 
-Expected Result:
+**Request:**  
+- Method: GET  
+- Endpoint: `/tools?available=true`
 
-Response status code is 200 OK
+**Steps:**  
+1. Send GET request with `available=true`
 
-Response body is a JSON array
+**Expected Result:**  
+- Status code is `200 OK`  
+- Response body is a JSON array  
+- Tools are available (if availability attribute is present)
 
-Array size is up to 20 items
+**Tags:** @tools
 
-Tags: @tools @smoke
+--------------------------------------------------------------------------------
+## TC-TOOLS-004 – Filter tools by availability = false
 
-TC-TOOLS-002 – Filter tools by valid category
+**Type:** Positive  
+**Priority:** Medium  
+**Preconditions:** API is reachable  
 
-Type: Positive
-Priority: High
-Preconditions:
+**Request:**  
+- Method: GET  
+- Endpoint: `/tools?available=false`
 
-API is available
+**Steps:**  
+1. Send GET request with `available=false`
 
-Request:
+**Expected Result:**  
+- Status code is `200 OK`  
+- Response body is a JSON array  
+- Returned tools are not available (if availability attribute is present)
 
-Method: GET
+**Tags:** @tools
 
-Endpoint: /tools?category={category}
+--------------------------------------------------------------------------------
+## TC-TOOLS-005 – Limit results with results=N
 
-Test Data: ladders, plumbing, power-tools, trailers, electric-generators, lawn-care
+**Type:** Positive  
+**Priority:** Medium  
+**Preconditions:** API is reachable  
 
-Steps:
+**Request:**  
+- Method: GET  
+- Endpoint: `/tools?results=5`
 
-Send GET request using each valid category
+**Steps:**  
+1. Send GET request with `results=5`
 
-Expected Result:
+**Expected Result:**  
+- Status code is `200 OK`  
+- Response body is a JSON array  
+- Array size is less than or equal to 5
 
-Status code is 200
+**Tags:** @tools
 
-Response is a JSON array
+--------------------------------------------------------------------------------
+## TC-TOOLS-006 – Combined filter parameters
 
-If category is included in response model, each returned tool matches the requested category
+**Type:** Positive  
+**Priority:** Medium  
+**Preconditions:** API is reachable  
 
-Tags: @tools
+**Request:**  
+- Method: GET  
+- Endpoint: `/tools?category=power-tools&available=true&results=5`
 
-TC-TOOLS-003 – Filter tools by availability = true
+**Steps:**  
+1. Send GET request with all three filters
 
-Type: Positive
-Priority: Medium
-Preconditions:
+**Expected Result:**  
+- Status code is `200 OK`  
+- Response body is a JSON array  
+- Array size is <= 5  
+- Values return valid filter combination
 
-API is available
+**Tags:** @tools
+--------------------------------------------------------------------------------
+## TC-TOOLS-007 – Invalid category value
 
-Request:
+**Type:** Negative  
+**Priority:** High  
+**Preconditions:** API is reachable  
 
-Method: GET
+**Request:**  
+- Method: GET  
+- Endpoint: `/tools?category=invalid-category`
 
-Endpoint: /tools?available=true
+**Steps:**  
+1. Send GET request using an invalid category value
 
-Steps:
+**Expected Result:**  
+- Status code is `400 Bad Request`  
+- Response contains error details (if provided)
 
-Send GET request with parameter available=true
+**Tags:** @tools @negative
 
-Expected Result:
+--------------------------------------------------------------------------------
+## TC-TOOLS-008 – Invalid results parameter returns 400
 
-Status code is 200
+**Type:** Negative  
+**Priority:** Medium  
+**Preconditions:** API is reachable  
 
-Response is a JSON array
+**Request:**  
+Test the following invalid `results` values:
+- `/tools?results=0`
+- `/tools?results=21`
+- `/tools?results=-1`
 
-If availability field is present, returned items have availability=true
+**Steps:**  
+1. Send GET request with each invalid results value
 
-Tags: @tools
+**Expected Result:**  
+- Status code is `400 Bad Request` for each request
 
-TC-TOOLS-004 – Filter tools by availability = false
+**Tags:** @tools @negative
 
-Type: Positive
-Priority: Medium
-Preconditions:
+--------------------------------------------------------------------------------
+## TC-TOOLS-009 – Get single tool by valid ID
 
-API is available
+**Type:** Positive  
+**Priority:** High  
+**Preconditions:** A valid `toolId` is known (e.g. 1)  
 
-Request:
+**Request:**  
+- Method: GET  
+- Endpoint: `/tools/1`
 
-Method: GET
+**Steps:**  
+1. Send GET request to `/tools/1`
 
-Endpoint: /tools?available=false
+**Expected Result:**  
+- Status code is `200 OK`  
+- Response is a JSON object  
+- Response contains details for the tool
 
-Steps:
+**Tags:** @tools
 
-Send GET request with available=false
+--------------------------------------------------------------------------------
+## TC-TOOLS-010 – JSON schema validation for tools list
 
-Expected Result:
+**Type:** Contract  
+**Priority:** Medium  
+**Preconditions:** API is reachable  
 
-Status code is 200
+**Request:**  
+- Method: GET  
+- Endpoint: `/tools`
 
-Response is a JSON array
+**Steps:**  
+1. Send GET request to `/tools`
+2. Validate response matches `schemas/tools_list.json`
 
-If availability field is present, returned items have availability=false
+**Expected Result:**  
+- Status code is `200 OK`  
+- Response structure matches JSON schema
 
-Tags: @tools
+**Tags:** @tools @contract
 
-TC-TOOLS-005 – Limit results using results query parameter
+--------------------------------------------------------------------------------
+## TC-TOOLS-011 – JSON schema validation for single tool
 
-Type: Positive
-Priority: Medium
-Preconditions:
+**Type:** Contract  
+**Priority:** Medium  
+**Preconditions:** A valid `toolId` is known (e.g. 1)  
 
-API is available
+**Request:**  
+- Method: GET  
+- Endpoint: `/tools/1`
 
-Request:
+**Steps:**  
+1. Send GET request to `/tools/1`
+2. Validate response matches `schemas/tool_object.json`
 
-Method: GET
+**Expected Result:**  
+- Status code is `200 OK`  
+- Response matches JSON schema
 
-Endpoint: /tools?results=5
+**Tags:** @tools @contract
+--------------------------------------------------------------------------------
+## TC-TOOLS-012 – Non-existing tool ID returns 404
 
-Steps:
+**Type:** Negative  
+**Priority:** High  
+**Preconditions:** API is reachable  
 
-Send GET request with results=5
+**Request:**  
+- Method: GET  
+- Endpoint: `/tools/99999999`
 
-Expected Result:
+**Steps:**  
+1. Send GET request using a large or invalid `toolId`
 
-Status code is 200
+**Expected Result:**  
+- Status code is `404 Not Found`
 
-Response is a JSON array
+**Tags:** @tools @negative
 
-Array length is less than or equal to 5
+--------------------------------------------------------------------------------
+## TC-TOOLS-013 – Optional: Request user manual (PDF)
 
-Tags: @tools
+**Type:** Positive  
+**Priority:** Low  
+**Preconditions:** A valid `toolId` is known (e.g. 1)  
 
-TC-TOOLS-006 – Combined filter parameters
+**Request:**  
+- Method: GET  
+- Endpoint: `/tools/1?user-manual=true`
 
-Type: Positive
-Priority: Medium
-Preconditions:
+**Steps:**  
+1. Send GET request with query parameter `user-manual=true`
 
-API is available
+**Expected Result:**  
+- Status code is `200 OK`  
+- Response `Content-Type` includes `application/pdf`
 
-Request:
+**Tags:** @tools
 
-Method: GET
+--------------------------------------------------------------------------------
 
-Endpoint: /tools?category=power-tools&available=true&results=5
+## JSON Contract Validation
 
-Steps:
+| Schema File | Description |
+|-------------|-------------|
+| `schemas/tools_list.json` | Defines structure for tools array response |
+| `schemas/tool_object.json` | Defines structure for a single tool object |
 
-Send GET request with all three filters
+Schemas are currently relaxed to maintain CI stability. They can be enhanced later by gradually enforcing required fields and stricter types.
 
-Expected Result:
+--------------------------------------------------------------------------------
 
-Status code is 200
+## Traceability to Automation (BDD)
 
-Response body is a JSON array
+| Component                                | Location |
+|------------------------------------------|----------|
+| Feature file                             | `src/test/resources/features/tools.feature` |
+| Step definitions                         | `src/test/java/com/example/api/stepdefinitions/CommonSteps.java` |
+| Runner                                   | `src/test/java/com/example/api/runners/RunTest.java` |
+| JSON Schemas                             | `src/test/resources/schemas/` |
 
-Array size is <= 5
+--------------------------------------------------------------------------------
 
-Values reflect valid filter combination
+## Execution Hints
 
-Tags: @tools
+Run **all Tools tests**:
 
-TC-TOOLS-007 – Invalid category input
-
-Type: Negative
-Priority: High
-Preconditions:
-
-API is available
-
-Request:
-
-Method: GET
-
-Endpoint: /tools?category=invalid-category
-
-Steps:
-
-Send GET request using invalid category
-
-Expected Result:
-
-Status code is 400 Bad Request
-
-Error message returned (if implemented)
-
-Tags: @tools @negative
-
-TC-TOOLS-008 – Invalid results parameter
-
-Type: Negative
-Priority: Medium
-Preconditions:
-
-API is available
-
-Request:
-
-Method: GET
-
-Endpoints:
-
-/tools?results=0
-
-/tools?results=21
-
-/tools?results=-5
-
-Steps:
-
-Send requests with each invalid value
-
-Expected Result:
-
-Status code is 400 Bad Request
-
-Tags: @tools @negative
-
-TC-TOOLS-009 – Get single tool by valid ID
-
-Type: Positive
-Priority: High
-Preconditions:
-
-Known valid toolId (example: 1)
-
-Request:
-
-Method: GET
-
-Endpoint: /tools/1
-
-Steps:
-
-Send request to /tools/1
-
-Expected Result:
-
-Status code is 200 OK
-
-Content-Type is JSON
-
-Valid tool details are returned
-
-Tags: @tools
-
-TC-TOOLS-010 – JSON contract validation for tools list
-
-Type: Contract
-Priority: Medium
-Preconditions:
-
-API is available
-
-Request:
-
-Method: GET
-
-Endpoint: /tools
-
-Steps:
-
-Validate schema against schemas/tools_list.json
-
-Expected Result:
-
-Status code is 200
-
-Response body matches JSON schema
-
-Tags: @tools @contract
-
-TC-TOOLS-011 – JSON contract validation for single tool
-
-Type: Contract
-Priority: Medium
-Preconditions:
-
-Known valid toolId (example: 1)
-
-Request:
-
-Method: GET
-
-Endpoint: /tools/1
-
-Steps:
-
-Validate response against schemas/tool_object.json
-
-Expected Result:
-
-Status code is 200
-
-Response matches single tool schema
-
-Tags: @tools @contract
-
-TC-TOOLS-012 – Handle non-existent tool ID
-
-Type: Negative
-Priority: High
-Preconditions:
-
-API is available
-
-Request:
-
-Method: GET
-
-Endpoint: /tools/999999
-
-Steps:
-
-Send GET request with large non-existent ID
-
-Expected Result:
-
-Status code is 404 Not Found
-
-Tags: @tools @negative
-
-TC-TOOLS-013 – Retrieve tool user manual (optional)
-
-Type: Positive
-Priority: Low
-Preconditions:
-
-Valid toolId
-
-Request:
-
-Method: GET
-
-Endpoint: /tools/1?user-manual=true
-
-Steps:
-
-Send GET request for user manual
-
-Expected Result:
-
-Status code is 200
-
-Response may return binary data or PDF-type content if available
-
-Tags: @tools
-
-JSON Schema References
-
-tools list schema file: schemas/tools_list.json
-
-single tool schema file: schemas/tool_object.json
-
-Traceability to Automation (BDD)
-
-Feature file: src/test/resources/features/tools.feature
-
-Step definitions: src/test/java/com/example/api/stepdefinitions/CommonSteps.java
-
-Tags used: @tools, @smoke, @negative, @contract
-
-Execution Commands
-
-Run all Tools tests:
-
-mvn test -Denv=dev -Dcucumber.filter.tags="@tools"
-
-
-Run only Negative tests:
-
-mvn test -Denv=dev -Dcucumber.filter.tags="@tools and @negative"
-
-
-Run only Contract tests:
-
-mvn test -Denv=dev -Dcucumber.filter.tags="@tools and @contract"
