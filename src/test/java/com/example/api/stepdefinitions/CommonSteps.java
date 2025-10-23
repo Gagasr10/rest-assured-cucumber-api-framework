@@ -2,20 +2,27 @@ package com.example.api.stepdefinitions;
 
 import com.example.api.specs.Specs;
 import com.example.api.utils.TokenManager;
-import io.restassured.response.Response;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
-import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
+import io.restassured.response.Response;
 
+import java.util.List;
+import java.util.Map;
 
 import static io.restassured.RestAssured.given;
+import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class CommonSteps {
 
     private Response response;
     private String token;
+    private Integer toolId;
+
+    // -------------------------
+    // Generic REST steps
+    // -------------------------
 
     @When("I send GET request to {string}")
     public void i_send_get_request_to(String path) {
@@ -35,6 +42,66 @@ public class CommonSteps {
         String body = response.asString();
         assertThat(body).contains(expected);
     }
+
+    @Then("the content type should contain {string}")
+    public void the_content_type_should_contain(String expected) {
+        assertThat(response.getContentType()).containsIgnoringCase(expected);
+    }
+
+    @Then("the response body should be a JSON array")
+    public void the_response_body_should_be_a_json_array() {
+        List<?> list = response.jsonPath().getList("$");
+        assertThat(list).as("Body should be a JSON array").isNotNull();
+    }
+
+    @Then("the array size should be at most {int}")
+    public void the_array_size_should_be_at_most(Integer n) {
+        List<?> list = response.jsonPath().getList("$");
+        assertThat(list.size()).isLessThanOrEqualTo(n);
+    }
+
+    @Then("each item category should equal {string} when present")
+    public void each_item_category_should_equal_when_present(String expected) {
+        List<?> items = response.jsonPath().getList("$");
+        for (Object o : items) {
+            if (o instanceof Map<?, ?> m) {
+                Object cat = m.get("category");
+                if (cat != null) {
+                    assertThat(cat.toString()).isEqualTo(expected);
+                }
+            }
+        }
+    }
+
+    @Then("each item availability should be {string} when present")
+    public void each_item_availability_should_be_when_present(String expectedStr) {
+        boolean expected = Boolean.parseBoolean(expectedStr);
+        List<?> items = response.jsonPath().getList("$");
+        for (Object o : items) {
+            if (o instanceof Map<?, ?> m) {
+                // neke verzije koriste "available", neke "availability" – proveri oba ključa
+                Object a = m.containsKey("available") ? m.get("available") : m.get("availability");
+                if (a != null) {
+                    if (a instanceof Boolean b) {
+                        assertThat(b).isEqualTo(expected);
+                    } else {
+                        assertThat(Boolean.parseBoolean(a.toString())).isEqualTo(expected);
+                    }
+                }
+            }
+        }
+    }
+
+    @Then("the response should match schema {string}")
+    public void the_response_should_match_schema(String schemaPath) {
+        response.then()
+                .assertThat()
+                .body(matchesJsonSchemaInClasspath(schemaPath));
+    }
+
+    // -------------------------
+    // Auth / Orders steps
+    // -------------------------
 
     @When("I register a new API client")
     public void i_register_a_new_api_client() {
@@ -68,7 +135,7 @@ public class CommonSteps {
 
     @When("I create a new order with a valid tool id and customer name")
     public void i_create_a_new_order_with_valid_tool_id_and_customer_name() {
-        int toolId = 1;
+        int toolId = 1; // biće zamenjeno dinamičkim ID-em u sledećem koraku refaktora
         String payload = String.format("{\"toolId\": %d, \"customerName\": \"John Doe\"}", toolId);
 
         response = given()
@@ -78,14 +145,6 @@ public class CommonSteps {
                 .when()
                 .post("/orders");
     }
-
-    @Then("the response should match schema {string}")
-    public void the_response_should_match_schema(String schemaPath) {
-        response.then()
-                .assertThat()
-                .body(matchesJsonSchemaInClasspath(schemaPath));
-    }
-
 
     @When("I send an authorized POST request to {string} with body:")
     public void i_send_an_authorized_post_request_to_with_body(String path, String docString) {
@@ -114,5 +173,35 @@ public class CommonSteps {
                 .body(payload)
                 .when()
                 .post("/api-clients");
+    }
+    
+    @Given("I pick a valid tool id from the tools list")
+    public void i_pick_a_valid_tool_id_from_the_tools_list() {
+        Response r = given()
+                .spec(Specs.request())
+                .when()
+                .get("/tools")
+                .then()
+                .statusCode(200)
+                .extract()
+                .response();
+
+        var list = r.jsonPath().getList("$");
+        for (Object o : list) {
+            if (o instanceof java.util.Map<?, ?> m && m.get("id") != null) {
+                this.toolId = Integer.valueOf(m.get("id").toString());
+                return;
+            }
+        }
+        throw new IllegalStateException("No tool with an 'id' found in /tools response: " + r.asString());
+    }
+
+    @When("I send GET request to that tool")
+    public void i_send_get_request_to_that_tool() {
+        assertThat(toolId).as("toolId should be picked first").isNotNull();
+        response = given()
+                .spec(Specs.request())
+                .when()
+                .get("/tools/" + toolId);
     }
 }
