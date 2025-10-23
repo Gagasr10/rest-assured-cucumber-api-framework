@@ -1,0 +1,48 @@
+# Maven build directory
+target/
+
+# IntelliJ IDEA project files
+.idea/
+*.iml
+
+# Eclipse project files
+.project
+.classpath
+.settings/
+
+# VS Code settings
+.vscode/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+log/
+logs/
+
+# Allure results and reports
+allure-results/
+allure-report/
+
+# Cucumber reports
+cucumber.json
+cucumber-report/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+
+# Environment configuration files
+*.env
+.env.local
+.env.*
+
+# Backup files
+*.bak
+*.orig
+
+# Mac OS metadata files
+._*
