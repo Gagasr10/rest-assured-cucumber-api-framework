@@ -369,6 +369,21 @@ public class CommonSteps {
                 .when()
                 .patch("/orders/" + orderId);
     }
+    
+    @When("I send PATCH request to that order with body:")
+    public void i_send_patch_request_to_that_order_with_body(String docString) {
+        String orderId = com.example.api.support.OrderState.getLastCreatedOrderId();
+        org.assertj.core.api.Assertions.assertThat(orderId)
+                .as("An order must exist before PATCHing it")
+                .isNotBlank();
+
+        response = io.restassured.RestAssured.given()
+                .spec(com.example.api.specs.Specs.request()) // NO auth header here on purpose
+                .body(docString)
+                .when()
+                .patch("/orders/" + orderId);
+    }
+
 
     @Then("the order customer name should be {string}")
     public void the_order_customer_name_should_be(String expected) {
