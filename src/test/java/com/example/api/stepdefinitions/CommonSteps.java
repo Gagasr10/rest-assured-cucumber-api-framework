@@ -7,6 +7,8 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import io.restassured.response.Response;
 import io.cucumber.java.After;
+import com.example.api.utils.RequestUtils;
+
 
 import java.util.List;
 import java.util.Map;
@@ -160,43 +162,35 @@ public class CommonSteps {
     @When("I send an authorized GET request to {string}")
     public void i_send_an_authorized_get_request_to(String path) {
         response = given()
-                .spec(Specs.request())
-                .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
+                .spec(RequestUtils.authSpec())
                 .when()
                 .get(path);
     }
-
+    
     @When("I create a new order with a valid tool id and customer name")
     public void i_create_a_new_order_with_valid_tool_id_and_customer_name() {
-        // Ensure we always use a valid toolId from /tools
-        ensureToolId();
-
-        String payload = String.format("{\"toolId\": %d, \"customerName\": \"John Doe\"}", this.toolId);
+        int firstToolId = RequestUtils.pickFirstValidToolId();
+        String payload = String.format("{\"toolId\": %d, \"customerName\": \"John Doe\"}", firstToolId);
 
         response = given()
-                .spec(Specs.request())
-                .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
+                .spec(RequestUtils.authSpec())
                 .body(payload)
                 .when()
                 .post("/orders");
 
-        // Store created orderId so we can clean it up after scenario
-        if (response.getStatusCode() == 201) {
-            Object id = response.jsonPath().get("orderId");
-            if (id != null) {
-                createdOrderId = id.toString();
-            }
-        }
+        // Read and remember orderId (assert it's present)
+        this.lastCreatedOrderId = response.jsonPath().getString("orderId");
+        assertThat(lastCreatedOrderId)
+                .as("orderId must be returned on successful creation; body: %s", response.asString())
+                .isNotBlank();
     }
-
     
 
 
     @When("I send an authorized POST request to {string} with body:")
     public void i_send_an_authorized_post_request_to_with_body(String path, String docString) {
         response = given()
-                .spec(Specs.request())
-                .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
+                .spec(RequestUtils.authSpec())
                 .body(docString)
                 .when()
                 .post(path);
@@ -205,8 +199,7 @@ public class CommonSteps {
     @When("I send an authorized DELETE request to {string}")
     public void i_send_an_authorized_delete_request_to(String path) {
         response = given()
-                .spec(Specs.request())
-                .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
+                .spec(RequestUtils.authSpec())
                 .when()
                 .delete(path);
     }
@@ -272,16 +265,14 @@ public class CommonSteps {
     
     @When("I fetch that order")
     public void i_fetch_that_order() {
-        assertThat(createdOrderId)
+        assertThat(lastCreatedOrderId)
                 .as("An order must be created first to fetch it")
                 .isNotBlank();
 
         response = given()
-                .spec(Specs.request())
-                .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
+                .spec(RequestUtils.authSpec())
                 .when()
-                .get("/orders/" + createdOrderId);
+                .get("/orders/" + lastCreatedOrderId);
     }
-
     
 }
