@@ -310,4 +310,84 @@ public class CommonSteps {
     }
 
     
+ // --- PATCH helpers ---
+
+    @When("I update that order status to {string}")
+    public void i_update_that_order_status_to(String newStatus) {
+        String orderId = com.example.api.support.OrderState.getLastCreatedOrderId();
+        assertThat(orderId).as("An order must exist before updating it").isNotBlank();
+
+        String body = String.format("{\"status\":\"%s\"}", newStatus);
+
+        // Try JSON body PATCH first
+        response = given()
+                .spec(com.example.api.utils.RequestUtils.authSpec())
+                .body(body)
+                .when()
+                .patch("/orders/" + orderId);
+
+        // If server rejects (400), retry with query param fallback
+        if (response.getStatusCode() == 400) {
+            System.out.println("[PATCH fallback] Body PATCH returned 400. Body was: " + response.asString());
+            response = given()
+                    .spec(com.example.api.utils.RequestUtils.authSpec())
+                    .queryParam("status", newStatus)
+                    .when()
+                    .patch("/orders/" + orderId);
+        }
+    }
+
+
+    @Then("the order status should be {string}")
+    public void the_order_status_should_be(String expected) {
+        String actual = response.jsonPath().getString("status");
+        assertThat(actual).as("Updated order status should match").isEqualTo(expected);
+    }
+
+    // Generic authorized PATCH with free-form body (useful for negative tests)
+    @When("I send an authorized PATCH request to {string} with body:")
+    public void i_send_an_authorized_patch_request_to_with_body(String path, String docString) {
+        response = given()
+                .spec(com.example.api.utils.RequestUtils.authSpec())
+                .body(docString)
+                .when()
+                .patch(path);
+    }
+
+    @When("I update that order customer name to {string}")
+    public void i_update_that_order_customer_name_to(String newName) {
+        String orderId = com.example.api.support.OrderState.getLastCreatedOrderId();
+        org.assertj.core.api.Assertions.assertThat(orderId)
+                .as("An order must exist before updating it")
+                .isNotBlank();
+
+        String body = String.format("{\"customerName\":\"%s\"}", newName);
+
+        response = io.restassured.RestAssured.given()
+                .spec(com.example.api.utils.RequestUtils.authSpec())
+                .body(body)
+                .when()
+                .patch("/orders/" + orderId);
+    }
+
+    @Then("the order customer name should be {string}")
+    public void the_order_customer_name_should_be(String expected) {
+        String orderId = com.example.api.support.OrderState.getLastCreatedOrderId();
+        org.assertj.core.api.Assertions.assertThat(orderId)
+                .as("An order must exist before verification")
+                .isNotBlank();
+
+        io.restassured.response.Response r = io.restassured.RestAssured.given()
+                .spec(com.example.api.utils.RequestUtils.authSpec())
+                .when()
+                .get("/orders/" + orderId);
+
+        org.assertj.core.api.Assertions.assertThat(r.getStatusCode()).isEqualTo(200);
+        String actual = r.jsonPath().getString("customerName");
+        org.assertj.core.api.Assertions.assertThat(actual).isEqualTo(expected);
+    }
+
+    
+    
+    
 }
