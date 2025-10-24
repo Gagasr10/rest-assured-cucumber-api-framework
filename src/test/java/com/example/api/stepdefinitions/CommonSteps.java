@@ -402,7 +402,50 @@ public class CommonSteps {
         org.assertj.core.api.Assertions.assertThat(actual).isEqualTo(expected);
     }
 
-    
+    @Then("each order item should have required fields")
+    public void each_order_item_should_have_required_fields() {
+        // Basic shape: array of objects
+        List<Map<String, Object>> items = response.jsonPath().getList("$");
+        assertThat(items)
+                .as("Orders list must be an array")
+                .isNotNull();
+
+        for (Map<String, Object> it : items) {
+            // orderId: non-empty string
+            Object orderId = it.get("orderId");
+            assertThat(orderId)
+                    .as("orderId must be present")
+                    .isInstanceOf(String.class);
+            assertThat((String) orderId)
+                    .as("orderId must be non-blank")
+                    .isNotBlank();
+
+            // toolId: numeric
+            Object toolId = it.get("toolId");
+            assertThat(toolId)
+                    .as("toolId must be present")
+                    .isInstanceOf(Number.class);
+
+            // customerName: non-empty string
+            Object customerName = it.get("customerName");
+            assertThat(customerName)
+                    .as("customerName must be present")
+                    .isInstanceOf(String.class);
+            assertThat((String) customerName)
+                    .as("customerName must be non-blank")
+                    .isNotBlank();
+
+            // createdAt: optional but, if present, should be non-empty string
+            if (it.containsKey("createdAt")) {
+                Object createdAt = it.get("createdAt");
+                assertThat(createdAt)
+                        .as("createdAt, if present, should be a non-blank string")
+                        .isInstanceOf(String.class);
+                assertThat((String) createdAt).isNotBlank();
+            }
+        }
+    }
+
     
     
 }

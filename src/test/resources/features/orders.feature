@@ -20,6 +20,13 @@ Feature: Orders management
     When I send an authorized GET request to "/orders"
     Then the response status code should be 200
     And the response should match schema "schemas/orders_list.json"
+    
+    @regression @orders
+Scenario: Orders list has required fields
+  When I send an authorized GET request to "/orders"
+  Then the response status code should be 200
+  And each order item should have required fields
+
 
   @negative
   Scenario: Unauthorized orders access returns 401
