@@ -57,4 +57,13 @@ Feature: Orders management
   When I fetch that order
   Then the response status code should be 200
   And the response should match schema "schemas/order_object.json"
+  
+  @regression @orders
+	Scenario: Create then delete an order
+  Given I have a valid access token
+  When I create a new order with a valid tool id and customer name
+  Then the response status code should be 201
+  When I delete that order
+  Then the response status code should be one of 200 or 204
+
 

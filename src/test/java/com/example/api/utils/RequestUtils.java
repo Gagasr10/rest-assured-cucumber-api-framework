@@ -9,6 +9,7 @@ import io.restassured.specification.RequestSpecification;
 import static io.restassured.RestAssured.given;
 
 /** Small helpers to keep step defs tidy. */
+
 public final class RequestUtils {
     private RequestUtils() {}
 

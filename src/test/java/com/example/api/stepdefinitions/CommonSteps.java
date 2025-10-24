@@ -8,6 +8,8 @@ import io.cucumber.java.en.When;
 import io.restassured.response.Response;
 import io.cucumber.java.After;
 import com.example.api.utils.RequestUtils;
+import com.example.api.support.OrderState;
+
 
 
 import java.util.List;
@@ -16,6 +18,8 @@ import java.util.Map;
 import static io.restassured.RestAssured.given;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
 import static org.assertj.core.api.Assertions.assertThat;
+import com.example.api.support.OrderState;
+
 
 public class CommonSteps {
 
@@ -23,7 +27,8 @@ public class CommonSteps {
     private String token;
     private Integer toolId;
     private String createdOrderId;
-    private String lastCreatedOrderId;
+ //   private String lastCreatedOrderId;
+    
 
 
     // -------------------------
@@ -53,11 +58,11 @@ public class CommonSteps {
     }
 
     
-    public String getLastCreatedOrderId() 
-    { return lastCreatedOrderId; }
-    
-    public void clearLastCreatedOrderId() 
-    { lastCreatedOrderId = null; }
+//    public String getLastCreatedOrderId() 
+//    { return lastCreatedOrderId; }
+//    
+//    public void clearLastCreatedOrderId() 
+//    { lastCreatedOrderId = null; }
 
     @When("I send GET request to {string}")
     public void i_send_get_request_to(String path) {
@@ -169,7 +174,9 @@ public class CommonSteps {
     
     @When("I create a new order with a valid tool id and customer name")
     public void i_create_a_new_order_with_valid_tool_id_and_customer_name() {
+        // Pick a real tool id to avoid hard-coded values
         int firstToolId = RequestUtils.pickFirstValidToolId();
+
         String payload = String.format("{\"toolId\": %d, \"customerName\": \"John Doe\"}", firstToolId);
 
         response = given()
@@ -179,11 +186,15 @@ public class CommonSteps {
                 .post("/orders");
 
         // Read and remember orderId (assert it's present)
-        this.lastCreatedOrderId = response.jsonPath().getString("orderId");
-        assertThat(lastCreatedOrderId)
+        String orderId = response.jsonPath().getString("orderId");
+        assertThat(orderId)
                 .as("orderId must be returned on successful creation; body: %s", response.asString())
                 .isNotBlank();
+
+        // Store in shared scenario state for later fetch/cleanup
+        OrderState.setLastCreatedOrderId(orderId);
     }
+
     
 
 
@@ -265,14 +276,29 @@ public class CommonSteps {
     
     @When("I fetch that order")
     public void i_fetch_that_order() {
-        assertThat(lastCreatedOrderId)
-                .as("An order must be created first to fetch it")
-                .isNotBlank();
+        String id = OrderState.getLastCreatedOrderId();
+        assertThat(id).as("An order must be created first to fetch it").isNotBlank();
 
         response = given()
                 .spec(RequestUtils.authSpec())
                 .when()
-                .get("/orders/" + lastCreatedOrderId);
+                .get("/orders/" + id);
+    }
+
+    @When("I delete that order")
+    public void i_delete_that_order() {
+        String id = OrderState.getLastCreatedOrderId();
+        assertThat(id).as("An order must be created first to delete it").isNotBlank();
+
+        response = given()
+                .spec(RequestUtils.authSpec())
+                .when()
+                .delete("/orders/" + id);
+    }
+    
+    @Then("the response status code should be one of {int} or {int}")
+    public void the_response_status_code_should_be_one_of_or(Integer a, Integer b) {
+        assertThat(response.getStatusCode()).isIn(a, b);
     }
     
 }
