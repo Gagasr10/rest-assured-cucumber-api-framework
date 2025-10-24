@@ -9,6 +9,7 @@ Feature: Orders management
   Scenario: Create a new order
     When I create a new order with a valid tool id and customer name
     Then the response status code should be 201
+    And the order customer name should be "John Doe"
 
   Scenario: Get all orders
     When I send an authorized GET request to "/orders"
@@ -44,6 +45,7 @@ Feature: Orders management
     When I create a new order with a valid tool id and customer name
     Then the response status code should be 201
     And the response should match schema "schemas/order_object.json"
+    And the order customer name should be "John Doe"
 
   @negative @orders
   Scenario: Delete non-existent order returns 404
