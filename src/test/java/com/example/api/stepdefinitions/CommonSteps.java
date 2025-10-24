@@ -301,4 +301,13 @@ public class CommonSteps {
         assertThat(response.getStatusCode()).isIn(a, b);
     }
     
+    @When("I send DELETE request to {string}")
+    public void i_send_delete_request_to(String path) {
+        response = given()
+                .spec(Specs.request()) // no auth on purpose
+                .when()
+                .delete(path);
+    }
+
+    
 }

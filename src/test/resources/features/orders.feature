@@ -65,5 +65,22 @@ Feature: Orders management
   Then the response status code should be 201
   When I delete that order
   Then the response status code should be one of 200 or 204
+  
+  @negative @orders
+  Scenario: Delete already deleted order returns 404
+  Given I have a valid access token
+  When I create a new order with a valid tool id and customer name
+  Then the response status code should be 201
+  When I delete that order
+  Then the response status code should be one of 200 or 204
+  When I delete that order
+  Then the response status code should be 404
+
+
+@regression @orders @negative
+Scenario: Delete order without auth returns 401
+  When I send DELETE request to "/orders/unauth-test"
+  Then the response status code should be 401
+
 
 
