@@ -10,7 +10,8 @@ import io.cucumber.testng.CucumberOptions;
                 "pretty",
                 "summary",
                 "json:target/cucumber-report/cucumber.json",
-                "html:target/cucumber-report/cucumber.html"
+                "html:target/cucumber-report/cucumber.html",
+                "io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm"
         },
         monochrome = true
 )

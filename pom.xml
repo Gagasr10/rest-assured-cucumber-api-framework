@@ -1,126 +1,140 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.example</groupId>
-	<artifactId>rest-assured-cucumber-api-framework</artifactId>
-	<version>1.0.0</version>
-	<name>REST Assured + Cucumber (TestNG) API Framework</name>
+  <groupId>com.example</groupId>
+  <artifactId>rest-assured-cucumber-api-framework</artifactId>
+  <version>1.0.0</version>
+  <name>REST Assured + Cucumber (TestNG) API Framework</name>
 
-	<properties>
-		<maven.compiler.source>17</maven.compiler.source>
-		<maven.compiler.target>17</maven.compiler.target>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  <properties>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-		<rest.assured.version>5.5.0</rest.assured.version>
-		<cucumber.version>7.18.1</cucumber.version>
-		<testng.version>7.10.2</testng.version>
-		<jackson.version>2.17.2</jackson.version>
-		<!-- schema validator = RA verzija -->
-		<json.schema.validator.version>${rest.assured.version}</json.schema.validator.version>
-		<allure.testng.version>2.24.0</allure.testng.version>
-		<maven.surefire.version>3.5.1</maven.surefire.version>
-	</properties>
+    <rest.assured.version>5.5.0</rest.assured.version>
+    <cucumber.version>7.18.1</cucumber.version>
+    <testng.version>7.10.2</testng.version>
+    <jackson.version>2.17.2</jackson.version>
+    <!-- schema validator = RA verzija -->
+    <json.schema.validator.version>${rest.assured.version}</json.schema.validator.version>
 
-	<dependencies>
-		<!-- REST Assured (test scope) -->
-		<dependency>
-			<groupId>io.rest-assured</groupId>
-			<artifactId>rest-assured</artifactId>
-			<version>${rest.assured.version}</version>
-			<scope>test</scope>
-		</dependency>
+    <!-- Allure porodica u istoj verziji (kompatibilno sa Cucumber 7.18.1) -->
+    <allure.version>2.29.0</allure.version>
 
-		<!-- JSON Schema Validator (test scope) -->
-		<dependency>
-			<groupId>io.rest-assured</groupId>
-			<artifactId>json-schema-validator</artifactId>
-			<version>${json.schema.validator.version}</version>
-			<scope>test</scope>
-		</dependency>
+    <maven.surefire.version>3.5.1</maven.surefire.version>
+  </properties>
 
-		<!-- Cucumber + TestNG -->
-		<dependency>
-			<groupId>io.cucumber</groupId>
-			<artifactId>cucumber-java</artifactId>
-			<version>${cucumber.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>io.cucumber</groupId>
-			<artifactId>cucumber-testng</artifactId>
-			<version>${cucumber.version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>io.cucumber</groupId>
-			<artifactId>cucumber-picocontainer</artifactId>
-			<version>${cucumber.version}</version>
-			<scope>test</scope>
-		</dependency>
+  <dependencies>
+    <!-- REST Assured (test scope) -->
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>rest-assured</artifactId>
+      <version>${rest.assured.version}</version>
+      <scope>test</scope>
+    </dependency>
 
-		<!-- TestNG -->
-		<dependency>
-			<groupId>org.testng</groupId>
-			<artifactId>testng</artifactId>
-			<version>${testng.version}</version>
-			<scope>test</scope>
-		</dependency>
+    <!-- JSON Schema Validator (test scope) -->
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>json-schema-validator</artifactId>
+      <version>${json.schema.validator.version}</version>
+      <scope>test</scope>
+    </dependency>
 
-		<!-- Jackson (po potrebi) -->
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>${jackson.version}</version>
-			<scope>test</scope>
-		</dependency>
+    <!-- Cucumber + TestNG -->
+    <dependency>
+      <groupId>io.cucumber</groupId>
+      <artifactId>cucumber-java</artifactId>
+      <version>${cucumber.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cucumber</groupId>
+      <artifactId>cucumber-testng</artifactId>
+      <version>${cucumber.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cucumber</groupId>
+      <artifactId>cucumber-picocontainer</artifactId>
+      <version>${cucumber.version}</version>
+      <scope>test</scope>
+    </dependency>
 
-		<!-- AssertJ (koristimo u stepovima) -->
-		<dependency>
-			<groupId>org.assertj</groupId>
-			<artifactId>assertj-core</artifactId>
-			<version>3.26.3</version>
-			<scope>test</scope>
-		</dependency>
+    <!-- TestNG -->
+    <dependency>
+      <groupId>org.testng</groupId>
+      <artifactId>testng</artifactId>
+      <version>${testng.version}</version>
+      <scope>test</scope>
+    </dependency>
 
-		<!-- Allure TestNG (opciono) -->
-		<dependency>
-			<groupId>io.qameta.allure</groupId>
-			<artifactId>allure-testng</artifactId>
-			<version>${allure.testng.version}</version>
-			<scope>test</scope>
-		</dependency>
+    <!-- Jackson (po potrebi) -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+      <scope>test</scope>
+    </dependency>
 
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<version>1.18.32</version>
-			<scope>provided</scope>
-		</dependency>
+    <!-- AssertJ -->
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>3.26.3</version>
+      <scope>test</scope>
+    </dependency>
 
+    <!-- Lombok -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.32</version>
+      <scope>provided</scope>
+    </dependency>
 
-	</dependencies>
+    <!-- Allure adapteri: Cucumber7 + TestNG + Rest-Assured (sve u istoj verziji) -->
+    <dependency>
+      <groupId>io.qameta.allure</groupId>
+      <artifactId>allure-cucumber7-jvm</artifactId>
+      <version>${allure.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.qameta.allure</groupId>
+      <artifactId>allure-testng</artifactId>
+      <version>${allure.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.qameta.allure</groupId>
+      <artifactId>allure-rest-assured</artifactId>
+      <version>${allure.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<version>${maven.surefire.version}</version>
-				<configuration>
-					<includes>
-						<include>**/*Runner.java</include>
-						<include>**/*Test.java</include>
-					</includes>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven.surefire.version}</version>
+        <configuration>
+          <includes>
+            <include>**/*Runner.java</include>
+            <include>**/*Test.java</include>
+          </includes>
 
-					<systemPropertyVariables>
-						<cucumber.filter.tags>${cucumber.filter.tags}</cucumber.filter.tags>
-						<allure.results.directory>target/allure-results</allure.results.directory>
-						<env>${env}</env>
-					</systemPropertyVariables>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
+          <systemPropertyVariables>
+            <cucumber.filter.tags>${cucumber.filter.tags}</cucumber.filter.tags>
+            <allure.results.directory>target/allure-results</allure.results.directory>
+            <env>${env}</env>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>

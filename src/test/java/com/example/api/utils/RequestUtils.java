@@ -1,22 +1,22 @@
 package com.example.api.utils;
 
-
-
 import com.example.api.specs.Specs;
+import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 
 import static io.restassured.RestAssured.given;
 
 /** Small helpers to keep step defs tidy. */
-
 public final class RequestUtils {
     private RequestUtils() {}
 
     /** Returns base spec + Authorization header with a valid token. */
     public static RequestSpecification authSpec() {
-        return Specs.request()
-                .header("Authorization", "Bearer " + TokenManager.getOrCreateToken());
+        return new RequestSpecBuilder()
+                .addRequestSpecification(Specs.request())
+                .addHeader("Authorization", "Bearer " + TokenManager.getOrCreateToken())
+                .build();
     }
 
     /** Fetches the first valid tool id from /tools (throws if none). */
