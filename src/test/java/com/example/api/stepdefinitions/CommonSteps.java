@@ -1,19 +1,14 @@
 package com.example.api.stepdefinitions;
 
-import com.example.api.specs.Specs;
+import com.example.api.clients.OrdersApi;
+import com.example.api.support.OrderState;
+import com.example.api.utils.RequestUtils;
 import com.example.api.utils.TokenManager;
+import com.example.api.specs.Specs;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import io.restassured.response.Response;
-import io.cucumber.java.After;
-import com.example.api.utils.RequestUtils;
-import com.example.api.support.OrderState;
-import com.example.api.clients.OrdersApi;
-import com.example.api.utils.RequestUtils;
-
-
-
 
 import java.util.List;
 import java.util.Map;
@@ -21,47 +16,16 @@ import java.util.Map;
 import static io.restassured.RestAssured.given;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchemaInClasspath;
 import static org.assertj.core.api.Assertions.assertThat;
-import com.example.api.support.OrderState;
-
 
 public class CommonSteps {
 
     private Response response;
     private String token;
     private Integer toolId;
-    private String createdOrderId;
- //   private String lastCreatedOrderId;
-    
-
 
     // -------------------------
     // Generic REST steps
     // -------------------------
-    
-    private void ensureToolId() {
-        if (this.toolId != null) return;
-
-        Response r = given()
-                .spec(Specs.request())
-                .when()
-                .get("/tools")
-                .then()
-                .statusCode(200)
-                .extract()
-                .response();
-
-        var list = r.jsonPath().getList("$");
-        for (Object o : list) {
-            if (o instanceof java.util.Map<?, ?> m && m.get("id") != null) {
-                this.toolId = Integer.valueOf(m.get("id").toString());
-                return;
-            }
-        }
-        throw new IllegalStateException("No tool with an 'id' found in /tools response: " + r.asString());
-    }
-
-    
-
 
     @When("I send GET request to {string}")
     public void i_send_get_request_to(String path) {
@@ -78,8 +42,7 @@ public class CommonSteps {
 
     @Then("the response should indicate the API is {string}")
     public void the_response_should_indicate_api_is(String expected) {
-        String body = response.asString();
-        assertThat(body).contains(expected);
+        assertThat(response.asString()).contains(expected);
     }
 
     @Then("the content type should contain {string}")
@@ -118,7 +81,6 @@ public class CommonSteps {
         List<?> items = response.jsonPath().getList("$");
         for (Object o : items) {
             if (o instanceof Map<?, ?> m) {
-                // neke verzije koriste "available", neke "availability" – proveri oba ključa
                 Object a = m.containsKey("available") ? m.get("available") : m.get("availability");
                 if (a != null) {
                     if (a instanceof Boolean b) {
@@ -144,7 +106,7 @@ public class CommonSteps {
 
     @When("I register a new API client")
     public void i_register_a_new_api_client() {
-        token = TokenManager.getOrCreateToken();
+        token = TokenManager.getOrCreateToken(); // generate & cache token (side-effect)
         response = given()
                 .spec(Specs.request())
                 .body("{\"clientName\":\"client\",\"clientEmail\":\"dup@example.com\"}")
@@ -171,7 +133,7 @@ public class CommonSteps {
             String id = path.substring("/orders/".length());
             response = OrdersApi.get(id);
         } else {
-            // Fallback for other authorized GETs if any appear later
+            // Fallback for any other authorized GETs if needed later
             response = given()
                     .spec(Specs.request())
                     .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
@@ -179,10 +141,10 @@ public class CommonSteps {
                     .get(path);
         }
     }
-    
+
     @When("I create a new order with a valid tool id and customer name")
     public void i_create_a_new_order_with_valid_tool_id_and_customer_name() {
-        int toolId = RequestUtils.pickFirstValidToolId();
+        int toolId = RequestUtils.pickFirstValidToolId(); // helper instead of manual /tools scan
         response = OrdersApi.create(toolId, "John Doe");
 
         // Remember orderId in shared state (used by fetch/delete/patch steps and Hooks cleanup)
@@ -192,10 +154,6 @@ public class CommonSteps {
                 .isNotBlank();
         OrderState.setLastCreatedOrderId(orderId);
     }
-
-
-    
-
 
     @When("I send an authorized POST request to {string} with body:")
     public void i_send_an_authorized_post_request_to_with_body(String path, String docString) {
@@ -216,33 +174,19 @@ public class CommonSteps {
 
     @When("I register a new API client with email {string}")
     public void i_register_a_new_api_client_with_email(String email) {
-        String payload = String.format("{\"clientName\":\"framework-client\",\"clientEmail\":\"%s\"}", email);
+        String payload = String.format(
+                "{\"clientName\":\"framework-client\",\"clientEmail\":\"%s\"}", email);
         response = given()
                 .spec(Specs.request())
                 .body(payload)
                 .when()
                 .post("/api-clients");
     }
-    
+
     @Given("I pick a valid tool id from the tools list")
     public void i_pick_a_valid_tool_id_from_the_tools_list() {
-        Response r = given()
-                .spec(Specs.request())
-                .when()
-                .get("/tools")
-                .then()
-                .statusCode(200)
-                .extract()
-                .response();
-
-        var list = r.jsonPath().getList("$");
-        for (Object o : list) {
-            if (o instanceof java.util.Map<?, ?> m && m.get("id") != null) {
-                this.toolId = Integer.valueOf(m.get("id").toString());
-                return;
-            }
-        }
-        throw new IllegalStateException("No tool with an 'id' found in /tools response: " + r.asString());
+        this.toolId = RequestUtils.pickFirstValidToolId();
+        assertThat(this.toolId).isNotNull();
     }
 
     @When("I send GET request to that tool")
@@ -253,33 +197,13 @@ public class CommonSteps {
                 .when()
                 .get("/tools/" + toolId);
     }
-    
-    @After
-    public void cleanupCreatedOrder() {
-        if (createdOrderId != null && !createdOrderId.isBlank() && !"does-not-exist".equals(createdOrderId)) {
-            try {
-                given()
-                    .spec(Specs.request())
-                    .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
-                    .when()
-                    .delete("/orders/" + createdOrderId)
-                    .then()
-                    .statusCode(org.hamcrest.Matchers.anyOf(org.hamcrest.Matchers.is(204), org.hamcrest.Matchers.is(404)));
-            } catch (Exception ignored) {
-                // ne rušimo suite zbog cleanup-a
-            } finally {
-                createdOrderId = null;
-            }
-        }
-    }
-    
+
     @When("I fetch that order")
     public void i_fetch_that_order() {
         String orderId = OrderState.getLastCreatedOrderId();
         assertThat(orderId).as("An order must be created first to fetch it").isNotBlank();
         response = OrdersApi.get(orderId);
     }
-
 
     @When("I delete that order")
     public void i_delete_that_order() {
@@ -288,12 +212,11 @@ public class CommonSteps {
         response = OrdersApi.delete(orderId);
     }
 
-    
     @Then("the response status code should be one of {int} or {int}")
     public void the_response_status_code_should_be_one_of_or(Integer a, Integer b) {
         assertThat(response.getStatusCode()).isIn(a, b);
     }
-    
+
     @When("I send DELETE request to {string}")
     public void i_send_delete_request_to(String path) {
         response = given()
@@ -302,8 +225,7 @@ public class CommonSteps {
                 .delete(path);
     }
 
-    
- // --- PATCH helpers ---
+    // --- PATCH helpers ---
 
     @When("I update that order status to {string}")
     public void i_update_that_order_status_to(String newStatus) {
@@ -312,19 +234,24 @@ public class CommonSteps {
         response = OrdersApi.updateStatusWithFallback(orderId, newStatus);
     }
 
-
-
     @Then("the order status should be {string}")
     public void the_order_status_should_be(String expected) {
-        String actual = response.jsonPath().getString("status");
-        assertThat(actual).as("Updated order status should match").isEqualTo(expected);
+        String orderId = com.example.api.support.OrderState.getLastCreatedOrderId();
+        org.assertj.core.api.Assertions.assertThat(orderId).isNotBlank();
+
+        com.example.api.models.orders.OrderResponse order =
+                com.example.api.clients.OrdersApi.getTyped(orderId);
+
+        org.assertj.core.api.Assertions.assertThat(order.getStatus())
+                .as("Updated order status should match")
+                .isEqualTo(expected);
     }
 
-    // Generic authorized PATCH with free-form body (useful for negative tests)
+
     @When("I send an authorized PATCH request to {string} with body:")
     public void i_send_an_authorized_patch_request_to_with_body(String path, String docString) {
         response = given()
-                .spec(com.example.api.utils.RequestUtils.authSpec())
+                .spec(RequestUtils.authSpec())
                 .body(docString)
                 .when()
                 .patch(path);
@@ -337,73 +264,48 @@ public class CommonSteps {
         response = OrdersApi.updateCustomerName(orderId, newName);
     }
 
-    
     @When("I send PATCH request to that order with body:")
     public void i_send_patch_request_to_that_order_with_body(String docString) {
-        String orderId = com.example.api.support.OrderState.getLastCreatedOrderId();
-        org.assertj.core.api.Assertions.assertThat(orderId)
-                .as("An order must exist before PATCHing it")
-                .isNotBlank();
+        String orderId = OrderState.getLastCreatedOrderId();
+        assertThat(orderId).as("An order must exist before PATCHing it").isNotBlank();
 
-        response = io.restassured.RestAssured.given()
-                .spec(com.example.api.specs.Specs.request()) // NO auth header here on purpose
+        response = given()
+                .spec(Specs.request()) // NO auth header here on purpose
                 .body(docString)
                 .when()
                 .patch("/orders/" + orderId);
     }
 
-
     @Then("the order customer name should be {string}")
     public void the_order_customer_name_should_be(String expected) {
         String orderId = com.example.api.support.OrderState.getLastCreatedOrderId();
-        org.assertj.core.api.Assertions.assertThat(orderId)
-                .as("An order must exist before verification")
-                .isNotBlank();
+        org.assertj.core.api.Assertions.assertThat(orderId).isNotBlank();
 
-        io.restassured.response.Response r = io.restassured.RestAssured.given()
-                .spec(com.example.api.utils.RequestUtils.authSpec())
-                .when()
-                .get("/orders/" + orderId);
+        com.example.api.models.orders.OrderResponse order =
+                com.example.api.clients.OrdersApi.getTyped(orderId);
 
-        org.assertj.core.api.Assertions.assertThat(r.getStatusCode()).isEqualTo(200);
-        String actual = r.jsonPath().getString("customerName");
-        org.assertj.core.api.Assertions.assertThat(actual).isEqualTo(expected);
+        org.assertj.core.api.Assertions.assertThat(order.getCustomerName())
+                .isEqualTo(expected);
     }
+
 
     @Then("each order item should have required fields")
     public void each_order_item_should_have_required_fields() {
-        // Basic shape: array of objects
         List<Map<String, Object>> items = response.jsonPath().getList("$");
-        assertThat(items)
-                .as("Orders list must be an array")
-                .isNotNull();
+        assertThat(items).as("Orders list must be an array").isNotNull();
 
         for (Map<String, Object> it : items) {
-            // orderId: non-empty string
             Object orderId = it.get("orderId");
-            assertThat(orderId)
-                    .as("orderId must be present")
-                    .isInstanceOf(String.class);
-            assertThat((String) orderId)
-                    .as("orderId must be non-blank")
-                    .isNotBlank();
+            assertThat(orderId).as("orderId must be present").isInstanceOf(String.class);
+            assertThat((String) orderId).as("orderId must be non-blank").isNotBlank();
 
-            // toolId: numeric
-            Object toolId = it.get("toolId");
-            assertThat(toolId)
-                    .as("toolId must be present")
-                    .isInstanceOf(Number.class);
+            Object toolIdObj = it.get("toolId");
+            assertThat(toolIdObj).as("toolId must be present").isInstanceOf(Number.class);
 
-            // customerName: non-empty string
             Object customerName = it.get("customerName");
-            assertThat(customerName)
-                    .as("customerName must be present")
-                    .isInstanceOf(String.class);
-            assertThat((String) customerName)
-                    .as("customerName must be non-blank")
-                    .isNotBlank();
+            assertThat(customerName).as("customerName must be present").isInstanceOf(String.class);
+            assertThat((String) customerName).as("customerName must be non-blank").isNotBlank();
 
-            // createdAt: optional but, if present, should be non-empty string
             if (it.containsKey("createdAt")) {
                 Object createdAt = it.get("createdAt");
                 assertThat(createdAt)
@@ -413,7 +315,4 @@ public class CommonSteps {
             }
         }
     }
-
-    
-    
 }

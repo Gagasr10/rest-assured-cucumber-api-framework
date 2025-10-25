@@ -1,5 +1,7 @@
 package com.example.api.clients;
 
+import com.example.api.models.orders.OrderCreateRequest;
+import com.example.api.models.orders.OrderResponse;
 import com.example.api.specs.Specs;
 import com.example.api.utils.TokenManager;
 import io.restassured.response.Response;
@@ -30,15 +32,33 @@ public final class OrdersApi {
                 .get("/orders/" + orderId);
     }
 
-    /** Authorized POST /orders with simple JSON body */
-    public static Response create(int toolId, String customerName) {
-        String payload = String.format("{\"toolId\": %d, \"customerName\": \"%s\"}", toolId, customerName);
+    /** Authorized GET /orders/{orderId} -> typed DTO */
+    public static OrderResponse getTyped(String orderId) {
         return given()
                 .spec(Specs.request())
                 .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
-                .body(payload)
+                .when()
+                .get("/orders/" + orderId)
+                .then()
+                .statusCode(200)
+                .extract()
+                .as(OrderResponse.class);
+    }
+
+    /** Authorized POST /orders using DTO body (recommended) */
+    public static Response create(OrderCreateRequest req) {
+        return given()
+                .spec(Specs.request())
+                .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
+                .body(req)
                 .when()
                 .post("/orders");
+    }
+
+    /** Backward compatibility: accepts raw params but uses DTO internally */
+    public static Response create(int toolId, String customerName) {
+        OrderCreateRequest req = new OrderCreateRequest(toolId, customerName);
+        return create(req);
     }
 
     /** Authorized DELETE /orders/{orderId} */
@@ -50,7 +70,7 @@ public final class OrdersApi {
                 .delete("/orders/" + orderId);
     }
 
-    /** Authorized PATCH /orders/{orderId} with raw body */
+    /** Authorized PATCH /orders/{orderId} sending raw JSON body */
     public static Response patchBody(String orderId, String rawJsonBody) {
         return given()
                 .spec(Specs.request())
@@ -60,7 +80,7 @@ public final class OrdersApi {
                 .patch("/orders/" + orderId);
     }
 
-    /** Authorized PATCH /orders/{orderId}?key=value (for servers that accept query form) */
+    /** Authorized PATCH /orders/{orderId}?key=value */
     public static Response patchQuery(String orderId, Map<String, ?> queryParams) {
         return given()
                 .spec(Specs.request())
@@ -70,7 +90,7 @@ public final class OrdersApi {
                 .patch("/orders/" + orderId);
     }
 
-    /** Update customerName with body first; no fallback needed for name (server accepts body). */
+    /** Update only customerName */
     public static Response updateCustomerName(String orderId, String newName) {
         String body = String.format("{\"customerName\": \"%s\"}", newName);
         return patchBody(orderId, body);
@@ -84,9 +104,15 @@ public final class OrdersApi {
         String body = String.format("{\"status\": \"%s\"}", status);
         Response first = patchBody(orderId, body);
         if (first.getStatusCode() == 400 && first.asString().contains("No valid fields to update")) {
-            System.out.println("[OrdersApi] Body PATCH returned 400; retrying as query param ...");
+            System.out.println("[OrdersApi] Fallback to query param PATCH...");
             return patchQuery(orderId, Map.of("status", status));
         }
         return first;
+    }
+
+    /** Convenience: update status then fetch the updated order as DTO */
+    public static OrderResponse updateStatusAndFetch(String orderId, String status) {
+        updateStatusWithFallback(orderId, status);
+        return getTyped(orderId);
     }
 }
