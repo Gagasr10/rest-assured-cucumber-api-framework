@@ -32,7 +32,7 @@ public final class OrdersApi {
                 .get("/orders/" + orderId);
     }
 
-    /** Authorized GET /orders/{orderId} -> typed DTO */
+    /** Authorized GET /orders/{orderId} -> DTO */
     public static OrderResponse getTyped(String orderId) {
         return given()
                 .spec(Specs.request())
@@ -55,10 +55,34 @@ public final class OrdersApi {
                 .post("/orders");
     }
 
+    /** Authorized POST /orders using DTO body -> DTO */
+    public static OrderResponse createTyped(OrderCreateRequest req) {
+        return given()
+                .spec(Specs.request())
+                .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
+                .body(req)
+                .when()
+                .post("/orders")
+                .then()
+                .statusCode(201)
+                .extract()
+                .as(OrderResponse.class);
+    }
+
     /** Backward compatibility: accepts raw params but uses DTO internally */
     public static Response create(int toolId, String customerName) {
-        OrderCreateRequest req = new OrderCreateRequest(toolId, customerName);
+        OrderCreateRequest req = new OrderCreateRequest();
+        req.setToolId(toolId);
+        req.setCustomerName(customerName);
         return create(req);
+    }
+
+    /** Backward compatibility: raw params -> DTO return */
+    public static OrderResponse createTyped(int toolId, String customerName) {
+        OrderCreateRequest req = new OrderCreateRequest();
+        req.setToolId(toolId);
+        req.setCustomerName(customerName);
+        return createTyped(req);
     }
 
     /** Authorized DELETE /orders/{orderId} */
@@ -108,11 +132,5 @@ public final class OrdersApi {
             return patchQuery(orderId, Map.of("status", status));
         }
         return first;
-    }
-
-    /** Convenience: update status then fetch the updated order as DTO */
-    public static OrderResponse updateStatusAndFetch(String orderId, String status) {
-        updateStatusWithFallback(orderId, status);
-        return getTyped(orderId);
     }
 }

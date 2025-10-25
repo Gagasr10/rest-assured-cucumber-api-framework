@@ -2,6 +2,7 @@ package com.example.api.stepdefinitions;
 
 import com.example.api.clients.OrdersApi;
 import com.example.api.support.OrderState;
+import com.example.api.models.orders.OrderResponse;
 import com.example.api.utils.RequestUtils;
 import com.example.api.utils.TokenManager;
 import com.example.api.specs.Specs;
@@ -236,15 +237,11 @@ public class CommonSteps {
 
     @Then("the order status should be {string}")
     public void the_order_status_should_be(String expected) {
-        String orderId = com.example.api.support.OrderState.getLastCreatedOrderId();
-        org.assertj.core.api.Assertions.assertThat(orderId).isNotBlank();
+        String orderId = OrderState.getLastCreatedOrderId();
+        assertThat(orderId).as("An order must exist before verification").isNotBlank();
 
-        com.example.api.models.orders.OrderResponse order =
-                com.example.api.clients.OrdersApi.getTyped(orderId);
-
-        org.assertj.core.api.Assertions.assertThat(order.getStatus())
-                .as("Updated order status should match")
-                .isEqualTo(expected);
+        OrderResponse or = OrdersApi.getTyped(orderId);
+        assertThat(or.getStatus()).as("Updated order status should match").isEqualTo(expected);
     }
 
 
@@ -278,15 +275,13 @@ public class CommonSteps {
 
     @Then("the order customer name should be {string}")
     public void the_order_customer_name_should_be(String expected) {
-        String orderId = com.example.api.support.OrderState.getLastCreatedOrderId();
-        org.assertj.core.api.Assertions.assertThat(orderId).isNotBlank();
+        String orderId = OrderState.getLastCreatedOrderId();
+        assertThat(orderId).as("An order must exist before verification").isNotBlank();
 
-        com.example.api.models.orders.OrderResponse order =
-                com.example.api.clients.OrdersApi.getTyped(orderId);
-
-        org.assertj.core.api.Assertions.assertThat(order.getCustomerName())
-                .isEqualTo(expected);
+        OrderResponse or = OrdersApi.getTyped(orderId);
+        assertThat(or.getCustomerName()).isEqualTo(expected);
     }
+
 
 
     @Then("each order item should have required fields")
