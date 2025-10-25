@@ -9,6 +9,9 @@ import io.restassured.response.Response;
 import io.cucumber.java.After;
 import com.example.api.utils.RequestUtils;
 import com.example.api.support.OrderState;
+import com.example.api.clients.OrdersApi;
+import com.example.api.utils.RequestUtils;
+
 
 
 
@@ -58,11 +61,7 @@ public class CommonSteps {
     }
 
     
-//    public String getLastCreatedOrderId() 
-//    { return lastCreatedOrderId; }
-//    
-//    public void clearLastCreatedOrderId() 
-//    { lastCreatedOrderId = null; }
+
 
     @When("I send GET request to {string}")
     public void i_send_get_request_to(String path) {
@@ -166,34 +165,34 @@ public class CommonSteps {
 
     @When("I send an authorized GET request to {string}")
     public void i_send_an_authorized_get_request_to(String path) {
-        response = given()
-                .spec(RequestUtils.authSpec())
-                .when()
-                .get(path);
+        if ("/orders".equals(path)) {
+            response = OrdersApi.getAll();
+        } else if (path.startsWith("/orders/")) {
+            String id = path.substring("/orders/".length());
+            response = OrdersApi.get(id);
+        } else {
+            // Fallback for other authorized GETs if any appear later
+            response = given()
+                    .spec(Specs.request())
+                    .header("Authorization", "Bearer " + TokenManager.getOrCreateToken())
+                    .when()
+                    .get(path);
+        }
     }
     
     @When("I create a new order with a valid tool id and customer name")
     public void i_create_a_new_order_with_valid_tool_id_and_customer_name() {
-        // Pick a real tool id to avoid hard-coded values
-        int firstToolId = RequestUtils.pickFirstValidToolId();
+        int toolId = RequestUtils.pickFirstValidToolId();
+        response = OrdersApi.create(toolId, "John Doe");
 
-        String payload = String.format("{\"toolId\": %d, \"customerName\": \"John Doe\"}", firstToolId);
-
-        response = given()
-                .spec(RequestUtils.authSpec())
-                .body(payload)
-                .when()
-                .post("/orders");
-
-        // Read and remember orderId (assert it's present)
+        // Remember orderId in shared state (used by fetch/delete/patch steps and Hooks cleanup)
         String orderId = response.jsonPath().getString("orderId");
         assertThat(orderId)
                 .as("orderId must be returned on successful creation; body: %s", response.asString())
                 .isNotBlank();
-
-        // Store in shared scenario state for later fetch/cleanup
         OrderState.setLastCreatedOrderId(orderId);
     }
+
 
     
 
@@ -276,25 +275,19 @@ public class CommonSteps {
     
     @When("I fetch that order")
     public void i_fetch_that_order() {
-        String id = OrderState.getLastCreatedOrderId();
-        assertThat(id).as("An order must be created first to fetch it").isNotBlank();
-
-        response = given()
-                .spec(RequestUtils.authSpec())
-                .when()
-                .get("/orders/" + id);
+        String orderId = OrderState.getLastCreatedOrderId();
+        assertThat(orderId).as("An order must be created first to fetch it").isNotBlank();
+        response = OrdersApi.get(orderId);
     }
+
 
     @When("I delete that order")
     public void i_delete_that_order() {
-        String id = OrderState.getLastCreatedOrderId();
-        assertThat(id).as("An order must be created first to delete it").isNotBlank();
-
-        response = given()
-                .spec(RequestUtils.authSpec())
-                .when()
-                .delete("/orders/" + id);
+        String orderId = OrderState.getLastCreatedOrderId();
+        assertThat(orderId).as("An order must be created first to delete it").isNotBlank();
+        response = OrdersApi.delete(orderId);
     }
+
     
     @Then("the response status code should be one of {int} or {int}")
     public void the_response_status_code_should_be_one_of_or(Integer a, Integer b) {
@@ -314,28 +307,11 @@ public class CommonSteps {
 
     @When("I update that order status to {string}")
     public void i_update_that_order_status_to(String newStatus) {
-        String orderId = com.example.api.support.OrderState.getLastCreatedOrderId();
-        assertThat(orderId).as("An order must exist before updating it").isNotBlank();
-
-        String body = String.format("{\"status\":\"%s\"}", newStatus);
-
-        // Try JSON body PATCH first
-        response = given()
-                .spec(com.example.api.utils.RequestUtils.authSpec())
-                .body(body)
-                .when()
-                .patch("/orders/" + orderId);
-
-        // If server rejects (400), retry with query param fallback
-        if (response.getStatusCode() == 400) {
-            System.out.println("[PATCH fallback] Body PATCH returned 400. Body was: " + response.asString());
-            response = given()
-                    .spec(com.example.api.utils.RequestUtils.authSpec())
-                    .queryParam("status", newStatus)
-                    .when()
-                    .patch("/orders/" + orderId);
-        }
+        String orderId = OrderState.getLastCreatedOrderId();
+        assertThat(orderId).as("An order must be created first to update it").isNotBlank();
+        response = OrdersApi.updateStatusWithFallback(orderId, newStatus);
     }
+
 
 
     @Then("the order status should be {string}")
@@ -356,19 +332,11 @@ public class CommonSteps {
 
     @When("I update that order customer name to {string}")
     public void i_update_that_order_customer_name_to(String newName) {
-        String orderId = com.example.api.support.OrderState.getLastCreatedOrderId();
-        org.assertj.core.api.Assertions.assertThat(orderId)
-                .as("An order must exist before updating it")
-                .isNotBlank();
-
-        String body = String.format("{\"customerName\":\"%s\"}", newName);
-
-        response = io.restassured.RestAssured.given()
-                .spec(com.example.api.utils.RequestUtils.authSpec())
-                .body(body)
-                .when()
-                .patch("/orders/" + orderId);
+        String orderId = OrderState.getLastCreatedOrderId();
+        assertThat(orderId).as("An order must be created first to update it").isNotBlank();
+        response = OrdersApi.updateCustomerName(orderId, newName);
     }
+
     
     @When("I send PATCH request to that order with body:")
     public void i_send_patch_request_to_that_order_with_body(String docString) {
