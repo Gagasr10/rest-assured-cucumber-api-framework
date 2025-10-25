@@ -28,11 +28,12 @@ Scenario: Orders list has required fields
   And each order item should have required fields
 
 
-  @negative
-  Scenario: Unauthorized orders access returns 401
-    # This step intentionally sends NO auth header
-    When I send GET request to "/orders"
-    Then the response status code should be 401
+@negative
+Scenario: Unauthorized orders access returns 401
+  When I send GET request to "/orders"
+  Then the response status code should be 401
+  And the response should match error schema
+
 
   @negative
   Scenario: Get non-existent order returns 404
@@ -121,10 +122,13 @@ Scenario: Orders list has required fields
   	And the order customer name should be ""
 
 
-  @negative @orders
-  Scenario: Update a non-existent order returns 404
-    When I send an authorized PATCH request to "/orders/does-not-exist" with body:
-      """
-      { "status": "approved" }
-      """
-    Then the response status code should be 404
+	 @negative @orders
+	Scenario: Update a non-existent order returns 404
+  	Given I have a valid access token
+  	When I send an authorized PATCH request to "/orders/does-not-exist" with body:
+    """
+    { "status": "approved" }
+    """
+  	Then the response status code should be 404
+  	And the response should match error schema
+

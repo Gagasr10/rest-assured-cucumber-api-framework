@@ -10,6 +10,9 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import io.restassured.response.Response;
+import com.example.api.models.errors.ErrorResponse;
+
+
 
 import java.util.List;
 import java.util.Map;
@@ -310,4 +313,32 @@ public class CommonSteps {
             }
         }
     }
+    @Then("the response should match error schema")
+    public void the_response_should_match_error_schema() {
+        response.then()
+                .assertThat()
+                .body(matchesJsonSchemaInClasspath("schemas/error.json"));
+    }
+
+    @Then("the error field should equal {string}")
+    public void the_error_field_should_equal(String expected) {
+        ErrorResponse err = response.as(ErrorResponse.class);
+        String actual = (err.getError() != null) ? err.getError() : err.getMessage();
+        assertThat(actual)
+                .as("Error message should match (error/message)")
+                .isNotBlank()
+                .isEqualTo(expected);
+    }
+
+    @Then("the error field should contain {string}")
+    public void the_error_field_should_contain(String needle) {
+        ErrorResponse err = response.as(ErrorResponse.class);
+        String actual = (err.getError() != null) ? err.getError() : err.getMessage();
+        assertThat(actual)
+                .as("Error message should contain substring")
+                .isNotBlank()
+                .containsIgnoringCase(needle);
+    }
+
+    
 }
