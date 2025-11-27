@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  # Allows running CI manually with custom parameters
+  # Manual run with custom env/tags
   workflow_dispatch:
     inputs:
       env:
@@ -17,7 +17,7 @@ on:
         required: true
         default: "@orders"
 
-# Prevent parallel CI runs on same branch
+# Prevent parallel runs on the same branch
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -57,7 +57,7 @@ jobs:
           name: cucumber-report-${{ matrix.env }}-${{ matrix.tags }}
           path: target/cucumber-report
 
-      # Upload TestNG Surefire logs
+      # Upload TestNG Surefire reports
       - name: Upload Surefire test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -65,40 +65,10 @@ jobs:
           name: surefire-reports-${{ matrix.env }}-${{ matrix.tags }}
           path: target/surefire-reports
 
-      # Upload raw Allure files
+      # Upload raw Allure results (for local viewing)
       - name: Upload Allure results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allure-results-${{ matrix.env }}-${{ matrix.tags }}
           path: target/allure-results
-
-  # Optional: publish Allure HTML report to GitHub Pages
-  allure-report:
-    if: always()
-    needs: build-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download raw Allure results
-        uses: actions/download-artifact@v4
-        with:
-          path: ./allure-results-bundle
-
-      - name: Merge Allure results
-        run: |
-          mkdir -p ./allure-results
-          find ./allure-results-bundle -type f -name "*.json" -exec cp {} ./allure-results/ \;
-          find ./allure-results-bundle -type f -name "*.xml" -exec cp {} ./allure-results/ \;
-          find ./allure-results-bundle -type f -name "*.txt" -exec cp {} ./allure-results/ \;
-
-      - name: Publish Allure report to GitHub Pages
-        uses: simple-elf/allure-report-action@v1
-        with:
-          allure_results: ./allure-results
-          gh_pages: gh-pages
-          allure_report: allure-report
-          keep_reports: 5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
