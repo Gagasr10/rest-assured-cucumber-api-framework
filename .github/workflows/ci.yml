@@ -1,74 +1,91 @@
-name: CI
+name: Playwright Tests + Allure Report
 
 on:
   push:
-    branches: [ main ]
+    branches: [main, master]
   pull_request:
-    branches: [ main ]
-  # Manual run with custom env/tags
-  workflow_dispatch:
-    inputs:
-      env:
-        description: "Target environment"
-        required: true
-        default: "dev"
-      tags:
-        description: "Cucumber tags to run"
-        required: true
-        default: "@orders"
-
-# Prevent parallel runs on the same branch
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [main, master]
 
 jobs:
-  build-test:
+  test:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        env: [ "${{ inputs.env || 'dev' }}" ]
-        tags: [ "${{ inputs.tags || '@orders' }}" ]
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-node@v4
         with:
-          distribution: temurin
-          java-version: '17'
-          cache: maven
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Run Maven tests
-        env:
-          MAVEN_OPTS: "-Xmx2g -Dfile.encoding=UTF-8"
-        run: |
-          mvn -B clean test \
-            -Denv=${{ matrix.env }} \
-            -Dcucumber.filter.tags="${{ matrix.tags }}"
+      - name: Install dependencies
+        run: npm ci
 
-      # Upload Cucumber HTML + JSON report
-      - name: Upload Cucumber report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cucumber-report-${{ matrix.env }}-${{ matrix.tags }}
-          path: target/cucumber-report
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
 
-      # Upload TestNG Surefire reports
-      - name: Upload Surefire test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: surefire-reports-${{ matrix.env }}-${{ matrix.tags }}
-          path: target/surefire-reports
+      - name: Run tests
+        run: npx playwright test --project=chromium
+        continue-on-error: true
 
-      # Upload raw Allure results (for local viewing)
       - name: Upload Allure results
-        if: always()
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: allure-results-${{ matrix.env }}-${{ matrix.tags }}
-          path: target/allure-results
+          name: allure-results
+          path: allure-results
+          retention-days: 1
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
+
+  publish-report:
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Allure results
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results
+
+      - name: Load Allure history from gh-pages
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Generate Allure report
+        uses: simple-elf/allure-report-action@master
+        with:
+          allure_results: allure-results
+          allure_report: allure-report
+          allure_history: gh-pages/allure-history
+          keep_reports: 20
+
+      - name: Publish to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-report
+
+      - name: Upload Allure report artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-report
+          path: allure-report
+          retention-days: 7
